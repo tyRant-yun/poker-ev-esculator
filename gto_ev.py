@@ -51,6 +51,7 @@ class Result:
     action_ev: dict[str, float]
     recommended_action: str
     mixed_strategy: dict[str, float]
+    raise_recommendation: dict[str, float | str]
 
 
 def parse_cards(text: str | Iterable[str]) -> list[str]:
@@ -218,6 +219,60 @@ def softmax_strategy(action_ev: dict[str, float], temperature: float) -> dict[st
     return {action: weight / total for action, weight in weights.items()}
 
 
+def recommend_raise_range(
+    *,
+    players: int,
+    position: str,
+    board: Sequence[str],
+    strategy: str,
+    opponent_range: float,
+    fold_to_raise: float,
+    pot: float,
+    to_call: float,
+) -> dict[str, float | str]:
+    """Estimate a practical raise range for the current node.
+
+    This is a transparent heuristic, not a full game-tree GTO solution.
+    """
+    street = {0: "preflop", 3: "flop", 4: "turn", 5: "river"}[len(board)]
+    street_factor = {"preflop": 1.0, "flop": 0.78, "turn": 0.62, "river": 0.52}[street]
+    multiway_factor = 1 / math.sqrt(players - 1)
+    fold_equity_factor = 0.78 + 0.50 * fold_to_raise
+    opponent_factor = 0.82 + 0.38 * opponent_range
+    strategy_factor = STRATEGY_PRESETS[strategy]["range_multiplier"]
+
+    total = (
+        POSITION_DEFAULT_RANGE[position]
+        * street_factor
+        * multiway_factor
+        * fold_equity_factor
+        * opponent_factor
+        * strategy_factor
+    )
+    total = min(max(total, 0.025), 0.70)
+
+    value_share = 0.48 + 0.22 * (1 - fold_to_raise) + 0.04 * max(players - 2, 0)
+    value_share = min(max(value_share, 0.50), 0.82)
+    value_range = total * value_share
+    bluff_range = total - value_range
+
+    pot_fraction = 0.66 if street != "preflop" else 0.55
+    pot_fraction += 0.08 * max(players - 2, 0)
+    pot_fraction -= 0.18 * fold_to_raise
+    pot_fraction = min(max(pot_fraction, 0.33), 1.0)
+    recommended_size = to_call + pot * pot_fraction
+
+    return {
+        "street": street,
+        "total_range": total,
+        "value_range": value_range,
+        "bluff_range": bluff_range,
+        "value_to_bluff_ratio": value_range / max(bluff_range, 0.001),
+        "recommended_size": recommended_size,
+        "pot_fraction": pot_fraction,
+    }
+
+
 def calculate(
     *,
     players: int,
@@ -264,6 +319,16 @@ def calculate(
     action_ev = calculate_action_ev(equity, pot, to_call, raise_size, resolved_fold)
     mixed = softmax_strategy(action_ev, preset["temperature"])
     best_action = max(action_ev, key=action_ev.get)
+    raise_recommendation = recommend_raise_range(
+        players=players,
+        position=position,
+        board=board,
+        strategy=strategy,
+        opponent_range=resolved_range,
+        fold_to_raise=resolved_fold,
+        pot=pot,
+        to_call=to_call,
+    )
     return Result(
         players=players,
         position=position,
@@ -279,6 +344,7 @@ def calculate(
         action_ev=action_ev,
         recommended_action=best_action,
         mixed_strategy=mixed,
+        raise_recommendation=raise_recommendation,
     )
 
 
@@ -305,6 +371,16 @@ def print_result(result: Result) -> None:
     print("近似混合策略:")
     for action, frequency in result.mixed_strategy.items():
         print(f"  {action:>5}: {percent(frequency)}")
+    raise_range = result.raise_recommendation
+    print(
+        f"推荐加注范围: 总计 {percent(float(raise_range['total_range']))}, "
+        f"价值 {percent(float(raise_range['value_range']))}, "
+        f"诈唬 {percent(float(raise_range['bluff_range']))}"
+    )
+    print(
+        f"推荐投入额: {float(raise_range['recommended_size']):.2f} "
+        f"({percent(float(raise_range['pot_fraction']))} 底池 + 跟注额)"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:

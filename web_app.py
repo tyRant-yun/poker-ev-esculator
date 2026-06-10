@@ -126,16 +126,26 @@ def generate_strategy_script(result: dict) -> str:
             f"  {action.upper():<6} {frequency * 100:>6.2f}%"
             f"  EV={result['action_ev'][action]:+.4f} BB"
         )
-    lines.extend(
-        [
-            "",
-            (
-                f"META equity={result['equity'] * 100:.2f}% "
-                f"range={result['opponent_range'] * 100:.2f}% "
-                f"fold_to_raise={result['fold_to_raise'] * 100:.2f}% "
-                f"simulations={result['simulations']}"
-            ),
-        ]
+    lines.append("")
+    raise_range = result.get("raise_recommendation")
+    if raise_range:
+        lines.extend(
+            [
+                (
+                    "RAISE_RANGE "
+                    f"total={raise_range['total_range'] * 100:.2f}% "
+                    f"value={raise_range['value_range'] * 100:.2f}% "
+                    f"bluff={raise_range['bluff_range'] * 100:.2f}% "
+                    f"size={raise_range['recommended_size']:.2f}BB"
+                ),
+                "",
+            ]
+        )
+    lines.append(
+        f"META equity={result['equity'] * 100:.2f}% "
+        f"range={result['opponent_range'] * 100:.2f}% "
+        f"fold_to_raise={result['fold_to_raise'] * 100:.2f}% "
+        f"simulations={result['simulations']}"
     )
     return "\n".join(lines)
 

@@ -1,6 +1,6 @@
 import unittest
 
-from gto_ev import calculate, calculate_action_ev, evaluate, parse_cards
+from gto_ev import calculate, calculate_action_ev, evaluate, parse_cards, recommend_raise_range
 
 
 class GtoEvTests(unittest.TestCase):
@@ -47,6 +47,22 @@ class GtoEvTests(unittest.TestCase):
             seed=11,
         )
         self.assertGreater(result.equity, 0.75)
+
+    def test_raise_range_has_value_and_bluff_components(self):
+        result = recommend_raise_range(
+            players=2,
+            position="BTN",
+            board=[],
+            strategy="balanced",
+            opponent_range=0.4,
+            fold_to_raise=0.42,
+            pot=10,
+            to_call=2,
+        )
+        self.assertAlmostEqual(
+            result["total_range"], result["value_range"] + result["bluff_range"]
+        )
+        self.assertGreater(result["recommended_size"], 2)
 
 
 if __name__ == "__main__":

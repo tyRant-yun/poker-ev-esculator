@@ -68,7 +68,30 @@ function renderResult(result) {
   document.querySelector("#resolved-range").textContent = pct(result.opponent_range);
   renderBars("#ev-chart", result.action_ev, "ev", result.recommended_action);
   renderBars("#strategy-chart", result.mixed_strategy, "strategy", result.recommended_action);
+  renderRaiseRange(result.raise_recommendation);
   document.querySelector("#strategy-script").textContent = result.strategy_script || "未生成策略脚本。";
+}
+
+function renderRaiseRange(range) {
+  const container = document.querySelector("#raise-range-chart");
+  const streetNames = { preflop: "翻牌前", flop: "翻牌", turn: "转牌", river: "河牌" };
+  document.querySelector("#range-street").textContent = streetNames[range.street] || range.street;
+  container.className = "raise-range-chart";
+  container.innerHTML = `
+    <div class="range-summary">
+      <div><span>总加注范围</span><strong>${pct(range.total_range)}</strong></div>
+      <div><span>推荐投入额</span><strong>${range.recommended_size.toFixed(2)} BB</strong></div>
+      <div><span>底池比例</span><strong>${pct(range.pot_fraction)}</strong></div>
+    </div>
+    <div class="range-stack">
+      <div class="range-value" style="width:${range.value_range / range.total_range * 100}%"></div>
+      <div class="range-bluff" style="width:${range.bluff_range / range.total_range * 100}%"></div>
+    </div>
+    <div class="range-legend">
+      <span><i class="value-dot"></i>价值 ${pct(range.value_range)}</span>
+      <span><i class="bluff-dot"></i>诈唬 ${pct(range.bluff_range)}</span>
+      <span>价值 : 诈唬 = ${range.value_to_bluff_ratio.toFixed(2)} : 1</span>
+    </div>`;
 }
 
 form.addEventListener("submit", async event => {

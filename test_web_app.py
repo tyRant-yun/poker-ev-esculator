@@ -26,6 +26,8 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(result["hand"], ["As", "Ah"])
         self.assertIn(result["recommended_action"], result["action_ev"])
         self.assertIn("THEN", result["strategy_script"])
+        self.assertIn("RAISE_RANGE", result["strategy_script"])
+        self.assertIn("total_range", result["raise_recommendation"])
 
     def test_calculate_request_rejects_bad_hand(self):
         with self.assertRaises(ValueError):
