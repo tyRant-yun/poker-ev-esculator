@@ -1,0 +1,57 @@
+name: Publish v2.0.0 release
+
+on:
+  push:
+    tags:
+      - v2.0.0
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run release checks
+        run: |
+          python -m unittest discover
+          python -m compileall -q poker review_store.py web_app.py
+
+      - name: Create release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v2.0.0"
+          asset="poker-strategy-workbench-${tag}.zip"
+          git archive --format=zip --output="$asset" "$tag"
+          sha256sum "$asset" > "${asset}.sha256"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v2.0.0"
+          asset="poker-strategy-workbench-${tag}.zip"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; no changes made."
+            exit 0
+          fi
+          gh release create "$tag" \
+            "$asset" \
+            "${asset}.sha256" \
+            --verify-tag \
+            --title "Poker Strategy Workbench v2.0.0" \
+            --notes-file RELEASE_NOTES_v2.0.0.md

@@ -3,208 +3,171 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>德州决策台 · GTO / EV</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>德州策略工作台</title>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="ambient ambient-a"></div>
-  <div class="ambient ambient-b"></div>
+  <div id="connection-banner" class="connection-banner" hidden>
+    <strong>牌局服务尚未连接</strong>
+    <span>请双击根目录的 <code>启动德州策略工作台.cmd</code>，或运行 <code>python .\web_app.py</code>，然后访问 <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>。</span>
+  </div>
+  <nav class="app-nav">
+    <a class="brand" href="/" aria-label="德州策略工作台">
+      <span class="brand-mark">P</span>
+      <span><strong>POKER LAB</strong><small>策略工作台</small></span>
+    </a>
+    <div class="nav-tabs"><button class="active" data-view="analysis">牌局分析</button><button data-view="training">范围训练</button><button data-view="reviews">复盘库</button></div>
+    <div class="local-state"><i></i><span>本地计算</span><small>数据不上传</small></div>
+  </nav>
+
   <main class="shell">
-    <header class="topbar">
+    <header class="hero-head">
       <div>
-        <div class="eyebrow"><span class="live-dot"></span> SINGLE NODE SOLVER</div>
-        <h1>德州决策台</h1>
-        <p>基于蒙特卡洛权益的 GTO / EV 单节点分析</p>
+        <span class="eyebrow">COMPLETE HAND WORKBENCH</span>
+        <h1>把每一个决策，拆成可验证的策略。</h1>
+        <p>记录完整牌局状态，结合位置、筹码深度、对手范围与行动线分析 Hero 的候选动作。</p>
       </div>
-      <div class="status-pill"><span></span> 本地计算 · 数据不上传</div>
+      <div class="hero-metrics">
+        <div><span>模式</span><strong>NLH</strong></div>
+        <div><span>分析</span><strong>EV</strong></div>
+        <div><span>状态</span><strong id="hand-status">待创建</strong></div>
+      </div>
     </header>
 
-    <section class="workspace">
-      <form id="solver-form" class="panel control-panel">
-        <div class="panel-heading">
-          <div>
-            <span class="section-index">01</span>
-            <h2>决策节点</h2>
-          </div>
-          <button type="button" class="ghost-button" id="load-example">载入示例</button>
-        </div>
-
-        <div class="form-grid three">
-          <label>牌局人数
-            <select name="players">
-              <option>2</option><option>3</option><option>4</option><option>5</option>
-              <option selected>6</option><option>7</option><option>8</option><option>9</option>
-            </select>
-          </label>
-          <label>Hero 位置
-            <select name="position">
-              <option>UTG</option><option>UTG+1</option><option>MP</option><option>HJ</option>
-              <option>CO</option><option selected>BTN</option><option>SB</option><option>BB</option>
-            </select>
-          </label>
-          <label>对手策略
-            <select name="strategy">
-              <option value="tight">紧手</option>
-              <option value="balanced" selected>平衡</option>
-              <option value="loose">松手</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="cards-block">
-          <label>Hero 手牌 <small>格式：As Kh</small>
-            <input name="hand" id="hand-input" value="As Kh" placeholder="As Kh" autocomplete="off" required>
-          </label>
-          <div class="card-preview" id="hand-preview"></div>
-          <label>公共牌 <small>可留空，或输入 3 / 4 / 5 张</small>
-            <input name="board" id="board-input" placeholder="Qs Jh 2c" autocomplete="off">
-          </label>
-          <div class="card-preview board-preview" id="board-preview"></div>
-        </div>
-
-        <div class="divider"></div>
-        <div class="panel-heading compact">
-          <div><span class="section-index">02</span><h2>底池与动作</h2></div>
-        </div>
-        <div class="form-grid three">
-          <label>行动前底池
-            <div class="number-wrap"><input type="number" name="pot" value="10" min="0" step="0.5"><span>BB</span></div>
-          </label>
-          <label>跟注所需
-            <div class="number-wrap"><input type="number" name="to_call" value="2" min="0" step="0.5"><span>BB</span></div>
-          </label>
-          <label>加注总额
-            <div class="number-wrap"><input type="number" name="raise_size" value="8" min="0" step="0.5"><span>BB</span></div>
-          </label>
-        </div>
-
-        <div class="advanced">
-          <button type="button" class="advanced-toggle" id="advanced-toggle">
-            高级参数 <span>+</span>
-          </button>
-          <div class="advanced-content" id="advanced-content">
-            <div class="form-grid three">
-              <label>对手范围 <small id="range-value">自动</small>
-                <input type="range" name="opponent_range" min="0.01" max="1" step="0.01" value="0.44">
-                <button type="button" class="tiny-button" id="range-auto">使用自动范围</button>
-              </label>
-              <label>加注弃牌率 <small id="fold-value">42%</small>
-                <input type="range" name="fold_to_raise" min="0" max="1" step="0.01" value="0.42">
-              </label>
-              <label>模拟次数
-                <select name="simulations">
-                  <option value="1000">1,000 · 快速</option>
-                  <option value="5000" selected>5,000 · 平衡</option>
-                  <option value="10000">10,000 · 精确</option>
-                  <option value="30000">30,000 · 高精度</option>
-                </select>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <button class="solve-button" type="submit">
-          <span>运行决策分析</span><strong>→</strong>
-        </button>
-        <div class="error-message" id="error-message" role="alert"></div>
-      </form>
-
-      <section class="results-column">
-        <div class="hero-result panel" id="hero-result">
-          <div class="result-label">推荐动作</div>
-          <div class="recommended" id="recommended">等待计算</div>
-          <div class="recommend-meta" id="recommend-meta">设置决策节点并运行分析</div>
-          <div class="equity-ring" id="equity-ring">
-            <div><strong id="equity">--</strong><span>权益</span></div>
-          </div>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card"><span>胜率</span><strong id="win-rate">--</strong></div>
-          <div class="stat-card"><span>平分底池</span><strong id="tie-rate">--</strong></div>
-          <div class="stat-card"><span>对手范围</span><strong id="resolved-range">--</strong></div>
-        </div>
-
-        <div class="panel result-panel">
-          <div class="panel-heading compact">
-            <div><span class="section-index">EV</span><h2>动作价值</h2></div>
-            <span class="unit-label">净筹码 · BB</span>
-          </div>
-          <div id="ev-chart" class="ev-chart empty-state">运行后显示各动作 EV</div>
-        </div>
-
-        <div class="panel result-panel">
-          <div class="panel-heading compact">
-            <div><span class="section-index">MIX</span><h2>近似混合策略</h2></div>
-          </div>
-          <div id="strategy-chart" class="strategy-chart empty-state">运行后显示动作频率</div>
-        </div>
-        <div class="panel result-panel">
-          <div class="panel-heading compact">
-            <div><span class="section-index">RANGE</span><h2>推荐加注范围</h2></div>
-            <span class="unit-label" id="range-street">当前节点</span>
-          </div>
-          <div id="raise-range-chart" class="raise-range-chart empty-state">运行后显示价值与诈唬范围</div>
-        </div>
-        <p class="disclaimer">该工具提供当前决策节点的近似最佳响应，并非完整博弈树 GTO Solver。</p>
-      </section>
+    <section class="street-bar">
+      <div class="street-intro"><span>当前牌局</span><strong id="street-caption">新建牌局</strong></div>
+      <div class="street-progress">
+        <span class="active"><i>1</i>PREFLOP</span><b></b>
+        <span><i>2</i>FLOP</span><b></b>
+        <span><i>3</i>TURN</span><b></b>
+        <span><i>4</i>RIVER</span>
+      </div>
+      <div class="street-tools"><button type="button" id="undo-hand-button" disabled>撤销</button><button type="button" id="branch-hand-button" disabled>创建分支</button></div>
     </section>
 
-    <section class="panel vision-panel">
-      <div class="panel-heading">
-        <div>
-          <span class="section-index">VISION</span>
-          <h2>桌面视觉检测与策略脚本</h2>
-        </div>
-        <span class="vision-status" id="vision-status">未连接</span>
+    <section class="workspace" id="analysis-workspace">
+      <div class="table-column">
+        <details class="setup-panel" open>
+          <summary>
+            <span><i>01</i><strong>牌局设置</strong><small>设置位置、盲注、筹码与对手画像</small></span>
+            <em>展开 / 收起</em>
+          </summary>
+          <form id="hand-create-form">
+            <div class="setup-section">
+              <div class="setup-title"><span>基础参数</span><small id="table-description">三人桌 · 无上限德州扑克</small></div>
+              <div class="form-grid">
+                <label>桌型<select name="player_count"><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option></select></label>
+                <label>按钮座位<select name="button_seat"></select></label>
+                <label>Hero 座位<select name="hero_seat"></select></label>
+                <label>小盲<input type="number" name="small_blind" value="1" min="0"></label>
+                <label>大盲<input type="number" name="big_blind" value="2" min="1"></label>
+                <label>前注<input type="number" name="ante" value="0" min="0"></label>
+                <label class="card-field">Hero 手牌
+                  <button class="card-input" id="hero-hand-picker" type="button" aria-label="选择 Hero 手牌">
+                    <span class="mini-card placeholder">?</span><span class="mini-card placeholder">?</span><em>选择</em>
+                  </button>
+                  <input type="hidden" name="hero_hand" required>
+                </label>
+              </div>
+            </div>
+            <div class="setup-section">
+              <div class="setup-title"><span>玩家配置</span><small>筹码量与策略倾向</small></div>
+              <div class="player-config" id="player-config"></div>
+            </div>
+            <button class="primary create-hand" type="submit"><span>创建牌局并开始记录</span><strong>→</strong></button>
+          </form>
+        </details>
+
+        <section class="table-stage">
+          <div class="table-stage-head"><span><i></i> LIVE HAND</span><small>规则引擎自动维护行动顺序、筹码与边池</small></div>
+          <div class="poker-table" id="full-hand-table">
+            <div class="felt-brand"><strong>POKER LAB</strong><span>NO LIMIT HOLD'EM</span></div>
+            <div class="table-center"><span id="hand-street">等待创建</span><strong id="hand-pot">底池 --</strong><small id="hand-board">公共牌 --</small></div>
+          </div>
+        </section>
+
+        <section class="action-console">
+          <div class="console-head"><div><span>ACTION</span><strong>当前合法动作</strong></div><small>金额为最小筹码单位</small></div>
+          <div id="hand-actions" class="action-buttons empty">创建牌局后显示合法动作</div>
+          <div id="raise-control" class="raise-control" hidden>
+            <div><span>下注总额</span><strong id="raise-value">0</strong></div>
+            <input id="raise-slider" type="range" min="0" max="100" value="0">
+            <input id="raise-input" type="number" min="0" value="0">
+            <button type="button" class="primary" id="raise-submit">确认</button>
+            <div id="raise-presets" class="raise-presets"></div>
+          </div>
+          <div id="showdown-control" class="showdown-control" hidden>
+            <div class="showdown-head"><span>SHOWDOWN</span><strong>录入对手摊牌手牌并完成结算</strong></div>
+            <div id="showdown-hands" class="showdown-hands"></div>
+            <button type="button" class="primary" id="showdown-submit">完成摊牌结算</button>
+          </div>
+          <div id="completion-control" class="completion-control" hidden>
+            <div class="completion-head"><span>NEXT HAND</span><strong>本手已结束，选择如何继续</strong></div>
+            <div id="rebuy-control" class="rebuy-control" hidden></div>
+            <div class="completion-grid">
+              <button class="card-input next-hero-picker" id="next-hero-picker" type="button" aria-label="选择下一手 Hero 手牌"></button>
+              <button type="button" class="primary" id="next-hand-button">继承筹码，开始下一手</button>
+              <button type="button" id="restart-hand-button">按本手初始状态重开</button>
+              <button type="button" id="reset-hand-button">回到本手起点</button>
+            </div>
+          </div>
+          <div class="deal-console">
+            <button class="card-input board-input" id="board-picker" type="button" disabled><span class="mini-card placeholder">?</span><em>选择下一街公共牌</em></button>
+            <button type="button" id="deal-button" disabled>发出公共牌</button>
+            <button type="button" class="primary analyze-button" id="analyze-hand-button" disabled><span>运行策略分析</span><small>500 次模拟</small></button>
+          </div>
+          <div id="hand-error" class="error" role="alert"></div>
+        </section>
       </div>
-      <p class="vision-intro">选择牌桌窗口或导入截图，识别可见牌局文字并填入决策节点。分析结果只生成策略建议，不会操作牌桌客户端。</p>
-      <div class="vision-grid">
-        <div>
-          <div class="capture-stage">
-            <video id="capture-video" autoplay muted playsinline></video>
-            <canvas id="capture-canvas"></canvas>
-            <div class="capture-placeholder" id="capture-placeholder">桌面画面预览</div>
-          </div>
-          <div class="vision-actions">
-            <button type="button" class="vision-button primary" id="start-capture">选择桌面窗口</button>
-            <button type="button" class="vision-button" id="scan-frame">离线检测当前画面</button>
-            <button type="button" class="vision-button" id="ai-scan-frame">AI 检测</button>
-            <label class="vision-button file-button">导入截图 / 状态<input type="file" id="image-upload" accept="image/*,.json,.txt"></label>
-          </div>
+
+      <aside>
+        <div class="summary-grid" id="hand-summary">
+          <div><span>当前街道</span><strong>--</strong></div><div><span>剩余玩家</span><strong>--</strong></div><div><span>行动总数</span><strong>--</strong></div>
         </div>
-        <div class="vision-data">
-          <div class="offline-toolbar">
-            <strong>离线模式</strong>
-            <button type="button" class="tiny-button" id="state-from-form">从当前参数生成状态</button>
-            <button type="button" class="tiny-button" id="load-offline-example">载入离线示例</button>
-          </div>
-          <div class="offline-fields">
-            <label>人数<input id="offline-players" type="number" min="2" max="9" placeholder="6"></label>
-            <label>位置<input id="offline-position" placeholder="BTN"></label>
-            <label>手牌<input id="offline-hand" placeholder="As Kh"></label>
-            <label>公共牌<input id="offline-board" placeholder="Qs Jh 2c"></label>
-            <label>底池<input id="offline-pot" type="number" min="0" step="0.5" placeholder="10"></label>
-            <label>跟注<input id="offline-call" type="number" min="0" step="0.5" placeholder="2"></label>
-            <label>加注<input id="offline-raise" type="number" min="0" step="0.5" placeholder="8"></label>
-          </div>
-          <label>视觉识别文本 <small>可手动校准后应用</small>
-            <textarea id="detected-text" placeholder="示例：players 2&#10;position BTN&#10;hand As Kh&#10;board Qs Jh 2c&#10;pot 10&#10;call 2&#10;raise 8"></textarea>
-          </label>
-          <div class="detected-tags" id="detected-tags">等待检测...</div>
-          <button type="button" class="vision-button primary full" id="apply-detection">应用识别结果并分析</button>
-          <div class="error-message" id="vision-error" role="alert"></div>
-        </div>
+        <section class="side-card strategy-card">
+          <div class="card-head"><div><b>EV</b><span><strong>当前策略分析</strong><small>候选动作与净筹码 EV</small></span></div><em>LIVE</em></div>
+          <div id="hand-analysis" class="analysis empty">Hero 行动时可运行策略分析</div>
+        </section>
+        <section class="side-card">
+          <div class="card-head"><div><b>RANGE</b><span><strong>对手范围</strong><small>根据行动线动态更新</small></span></div></div>
+          <div id="range-tabs" class="range-tabs"></div>
+          <div id="hand-ranges" class="ranges empty">创建牌局后显示逐玩家范围</div>
+        </section>
+        <section class="side-card">
+          <div class="card-head"><div><b>LINE</b><span><strong>行动时间线</strong><small>完整手牌复盘记录</small></span></div></div>
+          <div id="hand-timeline" class="timeline empty">尚无行动</div>
+        </section>
+      </aside>
+    </section>
+
+    <section id="review-library" class="review-library" hidden>
+      <div class="review-library-head">
+        <div><span class="eyebrow">HAND REVIEW LIBRARY</span><h2>复盘库</h2><p>已结束牌局自动保存到本地数据库，可逐节点检查状态与对手范围。</p></div>
+        <label>搜索牌局或 Hero 手牌<input id="review-search" type="search" placeholder="例如 As Ah 或牌局编号"></label>
       </div>
-      <div class="script-block">
-        <div class="panel-heading compact">
-          <div><span class="section-index">SCRIPT</span><h2>自动策略脚本</h2></div>
-          <button type="button" class="ghost-button" id="copy-script">复制脚本</button>
-        </div>
-        <pre id="strategy-script">运行决策分析后生成策略脚本。</pre>
+      <div class="review-layout">
+        <div id="review-list" class="review-list empty">尚无已归档牌局</div>
+        <div id="review-detail" class="review-detail empty">选择一手牌局开始复盘</div>
+      </div>
+    </section>
+    <section id="range-training" class="range-training" hidden>
+      <div class="review-library-head">
+        <div><span class="eyebrow">PREFLOP RANGE TRAINER</span><h2>范围训练</h2><p>选择你认为应进入目标范围的牌型，并与基础策略范围比较。</p></div>
+        <div class="training-controls"><label>位置<select id="training-position"><option>UTG</option><option>HJ</option><option>CO</option><option selected>BTN</option><option>SB</option><option>BB</option></select></label><label>场景<select id="training-action"><option value="rfi">率先加注 RFI</option><option value="call_open">面对开池跟注</option><option value="three_bet">3-Bet</option></select></label></div>
+      </div>
+      <div class="training-panel">
+        <div id="training-matrix" class="training-matrix"></div>
+        <div class="training-sidebar"><div id="training-result" class="analysis empty">选择牌型后提交答案</div><button id="training-submit" type="button" class="primary">提交并评分</button><button id="training-reset" type="button">清空选择</button></div>
       </div>
     </section>
   </main>
-  <script src="/app.js"></script>
+
+  <dialog id="card-picker-dialog">
+    <div class="picker-head"><div><b id="picker-kicker">HOLE CARDS</b><h2 id="picker-title">选择 Hero 手牌</h2><p id="picker-help">请选择 2 张牌</p></div><button id="picker-close" type="button" aria-label="关闭">×</button></div>
+    <div id="picker-selection" class="picker-selection"></div>
+    <div id="card-deck" class="card-deck"></div>
+    <div class="picker-actions"><button id="picker-clear" type="button">清空</button><button id="picker-confirm" class="primary" type="button">确认选择</button></div>
+  </dialog>
+  <script src="./app.js"></script>
 </body>
 </html>

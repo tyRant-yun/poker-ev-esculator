@@ -1,6 +1,5 @@
 .env
 .env.*
-!.env.example
 __pycache__/
 *.pyc
 *.pyo
@@ -12,3 +11,4 @@ ocr_test.png
 .idea/
 .vscode/
 .DS_Store
+data/
