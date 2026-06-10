@@ -6,6 +6,7 @@ __pycache__/
 *.pyo
 *.log
 *.zip
+*.sha256
 ocr_test.png
 .pytest_cache/
 .idea/
