@@ -1,0 +1,73 @@
+name: Publish v1.0.0 release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create release assets from tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v1.0.0"
+          asset="poker-ev-esculator-${tag}.zip"
+
+          git archive --format=zip --output="$asset" "$tag"
+          sha256sum "$asset" > "${asset}.sha256"
+
+          cat > release-notes.md <<'EOF'
+          ## Poker EV Calculator v1.0.0
+
+          首个正式发布版本，包含：
+
+          - 德州扑克权益、动作 EV 与近似混合策略计算
+          - 本地响应式浏览器图形界面
+          - 桌面截图导入与 Windows 系统 OCR
+          - 无 AI API 时的离线校准和状态文件导入
+          - 自动策略脚本输出
+          - AI 视觉 API 可选配置
+
+          下载 ZIP 后需要 Python 3.10 或更高版本，运行：
+
+          ```powershell
+          python .\web_app.py
+          ```
+
+          然后访问 `http://127.0.0.1:8000/`。
+
+          使用同名 `.sha256` 文件校验下载内容。
+          EOF
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v1.0.0"
+          asset="poker-ev-esculator-${tag}.zip"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; no changes made."
+            exit 0
+          fi
+
+          gh release create "$tag" \
+            "$asset" \
+            "${asset}.sha256" \
+            --verify-tag \
+            --title "Poker EV Calculator v1.0.0" \
+            --notes-file release-notes.md
