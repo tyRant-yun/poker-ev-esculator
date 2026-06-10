@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.zip
+ocr_test.png
+.pytest_cache/
+.idea/
+.vscode/
+.DS_Store

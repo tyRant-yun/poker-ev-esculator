@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>德州决策台 · GTO / EV</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow"><span class="live-dot"></span> SINGLE NODE SOLVER</div>
+        <h1>德州决策台</h1>
+        <p>基于蒙特卡洛权益的 GTO / EV 单节点分析</p>
+      </div>
+      <div class="status-pill"><span></span> 本地计算 · 数据不上传</div>
+    </header>
+
+    <section class="workspace">
+      <form id="solver-form" class="panel control-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="section-index">01</span>
+            <h2>决策节点</h2>
+          </div>
+          <button type="button" class="ghost-button" id="load-example">载入示例</button>
+        </div>
+
+        <div class="form-grid three">
+          <label>牌局人数
+            <select name="players">
+              <option>2</option><option>3</option><option>4</option><option>5</option>
+              <option selected>6</option><option>7</option><option>8</option><option>9</option>
+            </select>
+          </label>
+          <label>Hero 位置
+            <select name="position">
+              <option>UTG</option><option>UTG+1</option><option>MP</option><option>HJ</option>
+              <option>CO</option><option selected>BTN</option><option>SB</option><option>BB</option>
+            </select>
+          </label>
+          <label>对手策略
+            <select name="strategy">
+              <option value="tight">紧手</option>
+              <option value="balanced" selected>平衡</option>
+              <option value="loose">松手</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="cards-block">
+          <label>Hero 手牌 <small>格式：As Kh</small>
+            <input name="hand" id="hand-input" value="As Kh" placeholder="As Kh" autocomplete="off" required>
+          </label>
+          <div class="card-preview" id="hand-preview"></div>
+          <label>公共牌 <small>可留空，或输入 3 / 4 / 5 张</small>
+            <input name="board" id="board-input" placeholder="Qs Jh 2c" autocomplete="off">
+          </label>
+          <div class="card-preview board-preview" id="board-preview"></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="panel-heading compact">
+          <div><span class="section-index">02</span><h2>底池与动作</h2></div>
+        </div>
+        <div class="form-grid three">
+          <label>行动前底池
+            <div class="number-wrap"><input type="number" name="pot" value="10" min="0" step="0.5"><span>BB</span></div>
+          </label>
+          <label>跟注所需
+            <div class="number-wrap"><input type="number" name="to_call" value="2" min="0" step="0.5"><span>BB</span></div>
+          </label>
+          <label>加注总额
+            <div class="number-wrap"><input type="number" name="raise_size" value="8" min="0" step="0.5"><span>BB</span></div>
+          </label>
+        </div>
+
+        <div class="advanced">
+          <button type="button" class="advanced-toggle" id="advanced-toggle">
+            高级参数 <span>+</span>
+          </button>
+          <div class="advanced-content" id="advanced-content">
+            <div class="form-grid three">
+              <label>对手范围 <small id="range-value">自动</small>
+                <input type="range" name="opponent_range" min="0.01" max="1" step="0.01" value="0.44">
+                <button type="button" class="tiny-button" id="range-auto">使用自动范围</button>
+              </label>
+              <label>加注弃牌率 <small id="fold-value">42%</small>
+                <input type="range" name="fold_to_raise" min="0" max="1" step="0.01" value="0.42">
+              </label>
+              <label>模拟次数
+                <select name="simulations">
+                  <option value="1000">1,000 · 快速</option>
+                  <option value="5000" selected>5,000 · 平衡</option>
+                  <option value="10000">10,000 · 精确</option>
+                  <option value="30000">30,000 · 高精度</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button class="solve-button" type="submit">
+          <span>运行决策分析</span><strong>→</strong>
+        </button>
+        <div class="error-message" id="error-message" role="alert"></div>
+      </form>
+
+      <section class="results-column">
+        <div class="hero-result panel" id="hero-result">
+          <div class="result-label">推荐动作</div>
+          <div class="recommended" id="recommended">等待计算</div>
+          <div class="recommend-meta" id="recommend-meta">设置决策节点并运行分析</div>
+          <div class="equity-ring" id="equity-ring">
+            <div><strong id="equity">--</strong><span>权益</span></div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card"><span>胜率</span><strong id="win-rate">--</strong></div>
+          <div class="stat-card"><span>平分底池</span><strong id="tie-rate">--</strong></div>
+          <div class="stat-card"><span>对手范围</span><strong id="resolved-range">--</strong></div>
+        </div>
+
+        <div class="panel result-panel">
+          <div class="panel-heading compact">
+            <div><span class="section-index">EV</span><h2>动作价值</h2></div>
+            <span class="unit-label">净筹码 · BB</span>
+          </div>
+          <div id="ev-chart" class="ev-chart empty-state">运行后显示各动作 EV</div>
+        </div>
+
+        <div class="panel result-panel">
+          <div class="panel-heading compact">
+            <div><span class="section-index">MIX</span><h2>近似混合策略</h2></div>
+          </div>
+          <div id="strategy-chart" class="strategy-chart empty-state">运行后显示动作频率</div>
+        </div>
+        <p class="disclaimer">该工具提供当前决策节点的近似最佳响应，并非完整博弈树 GTO Solver。</p>
+      </section>
+    </section>
+
+    <section class="panel vision-panel">
+      <div class="panel-heading">
+        <div>
+          <span class="section-index">VISION</span>
+          <h2>桌面视觉检测与策略脚本</h2>
+        </div>
+        <span class="vision-status" id="vision-status">未连接</span>
+      </div>
+      <p class="vision-intro">选择牌桌窗口或导入截图，识别可见牌局文字并填入决策节点。分析结果只生成策略建议，不会操作牌桌客户端。</p>
+      <div class="vision-grid">
+        <div>
+          <div class="capture-stage">
+            <video id="capture-video" autoplay muted playsinline></video>
+            <canvas id="capture-canvas"></canvas>
+            <div class="capture-placeholder" id="capture-placeholder">桌面画面预览</div>
+          </div>
+          <div class="vision-actions">
+            <button type="button" class="vision-button primary" id="start-capture">选择桌面窗口</button>
+            <button type="button" class="vision-button" id="scan-frame">离线检测当前画面</button>
+            <button type="button" class="vision-button" id="ai-scan-frame">AI 检测</button>
+            <label class="vision-button file-button">导入截图 / 状态<input type="file" id="image-upload" accept="image/*,.json,.txt"></label>
+          </div>
+        </div>
+        <div class="vision-data">
+          <div class="offline-toolbar">
+            <strong>离线模式</strong>
+            <button type="button" class="tiny-button" id="state-from-form">从当前参数生成状态</button>
+            <button type="button" class="tiny-button" id="load-offline-example">载入离线示例</button>
+          </div>
+          <div class="offline-fields">
+            <label>人数<input id="offline-players" type="number" min="2" max="9" placeholder="6"></label>
+            <label>位置<input id="offline-position" placeholder="BTN"></label>
+            <label>手牌<input id="offline-hand" placeholder="As Kh"></label>
+            <label>公共牌<input id="offline-board" placeholder="Qs Jh 2c"></label>
+            <label>底池<input id="offline-pot" type="number" min="0" step="0.5" placeholder="10"></label>
+            <label>跟注<input id="offline-call" type="number" min="0" step="0.5" placeholder="2"></label>
+            <label>加注<input id="offline-raise" type="number" min="0" step="0.5" placeholder="8"></label>
+          </div>
+          <label>视觉识别文本 <small>可手动校准后应用</small>
+            <textarea id="detected-text" placeholder="示例：players 2&#10;position BTN&#10;hand As Kh&#10;board Qs Jh 2c&#10;pot 10&#10;call 2&#10;raise 8"></textarea>
+          </label>
+          <div class="detected-tags" id="detected-tags">等待检测...</div>
+          <button type="button" class="vision-button primary full" id="apply-detection">应用识别结果并分析</button>
+          <div class="error-message" id="vision-error" role="alert"></div>
+        </div>
+      </div>
+      <div class="script-block">
+        <div class="panel-heading compact">
+          <div><span class="section-index">SCRIPT</span><h2>自动策略脚本</h2></div>
+          <button type="button" class="ghost-button" id="copy-script">复制脚本</button>
+        </div>
+        <pre id="strategy-script">运行决策分析后生成策略脚本。</pre>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

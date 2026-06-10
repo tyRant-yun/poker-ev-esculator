@@ -1,0 +1,9 @@
+{
+  "players": 2,
+  "position": "BTN",
+  "hand": "As Kh",
+  "board": "Qs Jh 2c",
+  "pot": 10,
+  "to_call": 2,
+  "raise_size": 8
+}
